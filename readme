@@ -1,0 +1,65 @@
+
+    Spring social sign-in application.
+
+Supporting vkontakte, facebook and google OAuth 2.0 service providers, and requires application to be registered with
+each of services:
+    -   vkontakte (https://vk.com/dev)
+    -   facebook (https://developers.facebook.com/apps)
+    -   google (https://developers.google.com/)
+You can insert credentials of your registered applications in application.properties file.
+"url.application" is url of your application, used as call-back url in OAuth 2.0 flow!
+
+
+    THE CLIENT:
+
+ It will need to:
+  - Issue a GET /api/session request to check if the user is logged.
+      {
+          "name" : "google106947072713337584966"
+      }
+    If user isn't logged name will be null;
+  - Display a login form that will POST to /signin/{providerId} if user isn't logged. (e.g. /signin/google)
+  - Current user details can be obtained by requesting GET /api/session/details.
+      {
+          "firstName":"Dmitry",
+          "lastName":"Govorov",
+          "email":"dmitrygovoroff@gmail.com",
+          "socialProviderId":"106947072713337584966",
+          "socialProvider":"google"
+      }
+  - Display a logout button if the user is connected. The logout button will send a DELETE /api/session request.
+
+
+    SIGN IN FLOW:
+
+ POST /signin/{providerId} to initiate sign-in flow. After successful sign-in client will be authenticated and
+redirected to url, specified in "url.postSignIn" property.
+ If the provider user ID doesn't match any existing connection, user will be asked to give access to his public profile
+and email, then application will make a new connection using given access token from social provider. If during this
+process any error occurred, client will be redirected to url, specified in "url.signIn" property with error parameter:
+ ?error=access_denied - user denied access to his public profile
+ ?error=multiple_users - provider user ID matches more than one existing connection
+ ?error=provider - any error occurs while fetching the access token or while fetching the user's profile data
+
+
+    PERSISTING CONNECTIONS:
+
+ Spring Social provides a JdbcUsersConnectionRepository implementation capable of persisting connections to a RDBMS.
+The database schema designed to back this repository is defined as follows:
+
+    create table UserConnection (userId varchar(255) not null,
+        providerId varchar(255) not null,
+        providerUserId varchar(255),
+        rank int not null,
+        displayName varchar(255),
+        profileUrl varchar(512),
+        imageUrl varchar(512),
+        accessToken varchar(255) not null,
+        secret varchar(255),
+        refreshToken varchar(255),
+        expireTime bigint,
+        primary key (userId, providerId, providerUserId));
+    create unique index UserConnectionRank on UserConnection(userId, providerId, rank);
+
+this schema definition is available in the spring-social-core module as a resource
+at the path /org/springframework/social/connect/jdbc/JdbcUsersConnectionRepository.sql
